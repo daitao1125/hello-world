@@ -1,0 +1,304 @@
+package com.qb.tools;
+
+
+import com.qb.modules.interfaces.core.util.DateUtils;
+
+import java.util.*;
+
+/**
+ * Created by dxt on 2017/7/20.
+ */
+public class Test24Month {
+    public static void main(String[] strs)
+    {
+
+        List<RepayPlan> list = new ArrayList();
+        RepayPlan dto = null;
+// 共三期 还款时间为 20170210--20170410
+        dto = new RepayPlan();
+        dto.setDeadlineDate(DateUtils.parseDate("20170210"));
+        dto.setIouCode("2017011000001");
+        dto.setLastRepayDay(DateUtils.parseDate("20170310"));
+        dto.setOverdueFlag("");
+        dto.setPeriodNo(1);
+        dto.setPlanId("11");
+        dto.setSettleFlag("2");
+        list.add(dto);
+
+        dto = new RepayPlan();
+        dto.setDeadlineDate(DateUtils.parseDate("20170310"));
+        dto.setIouCode("2017011000001");
+        dto.setLastRepayDay(DateUtils.parseDate("20170315"));
+        dto.setOverdueFlag("");
+        dto.setPeriodNo(2);//逾期
+        dto.setPlanId("13");
+        dto.setSettleFlag("3");
+        list.add(dto);
+
+        dto = new RepayPlan();
+        dto.setDeadlineDate(DateUtils.parseDate("20170410"));
+        dto.setIouCode("2017011000001");
+        dto.setLastRepayDay(DateUtils.parseDate("20181030"));
+        dto.setOverdueFlag("");
+        dto.setPeriodNo(3);
+        dto.setPlanId("14");
+        dto.setSettleFlag("3");//正常
+        list.add(dto);
+
+
+
+        Date currentDate = DateUtils.parseDate("20181131");
+        Date tempDate = list.get(0).getDeadlineDate();//先取第一次账单日
+        Date tempEndDate = getMonthEndDay(tempDate);//第一个月的比较
+        RepayPlan curDto = null;
+        String result24 = "*";
+
+        Date firstDeadlineDate =null;//第一次逾期日期
+        Date firstDeadlineDateJq =null;//第一次逾期日期后结清
+        int monthNum =0;//月计数器
+
+        int period = 0;
+        //然后取账单日月末
+        while(currentDate.getTime()>=tempEndDate.getTime())
+        {
+            if(result24.length()==24)
+            {
+                break;
+            }
+                curDto=list.get(period);
+                if(curDto.getSettleFlag().equals("1"))//正常，这种情况后面没有内容
+                {
+                    break;
+                }else if(curDto.getSettleFlag().equals("2"))//逾期，这种情况后面都是逾期
+                {
+                    if(firstDeadlineDate==null)
+                    {
+                        firstDeadlineDate = curDto.getDeadlineDate();
+                    }
+                    int days = (int)(( tempEndDate.getTime()-firstDeadlineDate.getTime())/86400000);
+                    result24 = result24+ get24Level(days);
+                    if(period==22)
+                    {
+                        break;
+                    }
+                    period++;
+                }else if(curDto.getSettleFlag().equals("3")){ //结清
+
+                    if(tempEndDate.getTime()-curDto.getLastRepayDay().getTime()>=0)//正常结清，月末前还清该期
+                    {
+                        if(period+1==list.size())
+                        {
+                            result24= result24+"C";
+                            break;
+                        }else
+                        {
+                            result24= result24+"N";
+                            period++;
+
+                        }
+
+                    }else //先逾期后已结清******************//
+                    {
+                        int days= 0;
+                       // firstDeadlineDateJq=curDto.getDeadlineDate();
+//                        int days = (int)(( tempEndDate.getTime()-firstDeadlineDateJq.getTime())/86400000);
+//                        result24 = result24 + get24Level(days);
+//                       // Date nextEndDate
+//                        tempEndDate=getMonthEndDay( addMonth( firstDeadlineDateJq,1));
+                        while(curDto.getLastRepayDay().getTime()>tempEndDate.getTime() && currentDate.getTime()>=tempEndDate.getTime() && result24.length()<24)
+                        {
+                            days = (int)(( tempEndDate.getTime()-curDto.getDeadlineDate().getTime())/86400000);
+                            result24 = result24 + get24Level(days);
+                            if(curDto.getLastRepayDay().getTime()>getMonthEndDay( addMonth( tempEndDate,1)).getTime())
+                            {
+                                tempEndDate=getMonthEndDay( addMonth( tempEndDate,1));
+                            }else
+                            {
+                                break;
+                            }
+
+                        }
+                        if(period<list.size()-1)
+                        {
+                            period++;
+                        }
+
+
+                    }
+                }
+
+            tempEndDate = getMonthEndDay(addMonth(tempEndDate,1));//取下个月末日期
+
+
+
+
+        }
+
+        System.out.println(DateUtils.format(  currentDate,"yyyy-MM-dd"));
+
+        String str = result24;
+        System.out.println(result24.length());
+        String sim = "////////////////////////";
+        str = sim.substring(0,sim.length()-str.length())+str;
+        System.out.println(str);
+        System.out.println(str.length());
+
+
+       // String.format(result24,)
+
+
+    }
+
+
+    public static String get24Level(int overDay)
+    {
+        String  result = "";
+        if(overDay<=0)
+        {
+            result="N";
+        }
+        if( 1<=overDay && overDay<=30)
+        {
+            result="1";
+        }else if(31<=overDay && overDay<=60)
+        {
+            result="2";
+        }else if(61<=overDay && overDay<=90)
+        {
+            result="3";
+        }else if(91<=overDay && overDay<=120)
+        {
+            result="4";
+        }else if(121<=overDay && overDay<=150)
+        {
+            result="5";
+        }else if(151<=overDay && overDay<=180)
+        {
+            result="6";
+        }else if(180<overDay)
+        {
+            result="7";
+        }
+        return result;
+    }
+
+
+    /**
+     * 日期相加减
+     * @param targetDate
+     * @param num
+     * @return
+     */
+    public static Date addMonth(Date targetDate,int num)
+    {
+        Calendar calendar = new GregorianCalendar();
+        calendar.setTime(targetDate);
+        calendar.add(Calendar.MONTH, num);
+        return calendar.getTime();
+    }
+
+
+    /**
+     * 获取月末日期
+     * @param targetDate
+     * @return
+     */
+    public static Date getMonthEndDay(Date targetDate)
+    {
+        Calendar calendar = new GregorianCalendar();
+        calendar.setTime(targetDate);
+        calendar.add(Calendar.MONTH, 1);
+
+        calendar.set(Calendar.DAY_OF_MONTH, 0);
+
+        return calendar.getTime();
+    }
+
+    /**
+     * 获取月初日期
+     * @param targetDate
+     * @return
+     */
+    public static Date getMonthBeginDay(Date targetDate)
+    {
+        Calendar calendar = new GregorianCalendar();
+        calendar.setTime(targetDate);
+        calendar.add(Calendar.MONTH, 0);
+        calendar.set(Calendar.DAY_OF_MONTH, 1);
+
+        return calendar.getTime();
+    }
+
+
+
+
+}
+
+
+class RepayPlan
+{
+    private String planId;
+    private String iouCode;
+    private int periodNo;
+    private Date deadlineDate;
+    private String overdueFlag;
+    private Date lastRepayDay;
+    private String settleFlag;
+
+
+    public String getPlanId() {
+        return planId;
+    }
+
+    public void setPlanId(String planId) {
+        this.planId = planId;
+    }
+
+    public String getIouCode() {
+        return iouCode;
+    }
+
+    public void setIouCode(String iouCode) {
+        this.iouCode = iouCode;
+    }
+
+    public int getPeriodNo() {
+        return periodNo;
+    }
+
+    public void setPeriodNo(int periodNo) {
+        this.periodNo = periodNo;
+    }
+
+    public Date getDeadlineDate() {
+        return deadlineDate;
+    }
+
+    public void setDeadlineDate(Date deadlineDate) {
+        this.deadlineDate = deadlineDate;
+    }
+
+    public String getOverdueFlag() {
+        return overdueFlag;
+    }
+
+    public void setOverdueFlag(String overdueFlag) {
+        this.overdueFlag = overdueFlag;
+    }
+
+    public Date getLastRepayDay() {
+        return lastRepayDay;
+    }
+
+    public void setLastRepayDay(Date lastRepayDay) {
+        this.lastRepayDay = lastRepayDay;
+    }
+
+    public String getSettleFlag() {
+        return settleFlag;
+    }
+
+    public void setSettleFlag(String settleFlag) {
+        this.settleFlag = settleFlag;
+    }
+}
